@@ -35,6 +35,10 @@
   .today.none .val{font-size:20px;color:var(--gray)}
   .next{margin-top:10px;font-size:14px;color:var(--navy-2)}
   .next b{font-weight:900}
+  .nextbox{margin-top:12px;border:2px solid var(--navy);border-radius:16px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .nextbox .lbl{font-size:13px;font-weight:700;color:var(--navy-2)}
+  .nextbox .when{font-size:11px;color:var(--gray);margin-top:2px}
+  .nextbox .val{font-size:18px;font-weight:900;text-align:right;white-space:pre-line;word-break:keep-all}
   .week{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:18px}
   .day{border-radius:12px;background:#f6f4ee;padding:8px 4px;text-align:center;min-height:70px}
   .day .d{font-size:12px;font-weight:700;color:var(--gray)}
@@ -109,6 +113,8 @@ function parseCSV(text){
   return rows;
 }
 
+const norm = s => s.toLowerCase().replace(/\s+/g,"");
+
 function toClasses(rows){
   const h = rows.findIndex(r => (r[0]||"").trim()==="반");
   if(h<0) throw new Error("header not found");
@@ -116,9 +122,21 @@ function toClasses(rows){
   for(let i=h+1;i<rows.length;i++){
     const r=rows[i]; const name=(r[0]||"").trim();
     if(!name) continue;
-    if(name.startsWith("선생님용")) break;
+    if(name.startsWith("선생님용") || name.startsWith("다음 시간")) break;
     const week = [3,4,5,6,7].map(j => { const v=(r[j]||"").trim(); return (v==="-"||v==="")? "" : v; });
-    out.push({name, book:(r[1]||"").trim(), week});
+    out.push({name, book:(r[1]||"").trim(), week, next:null});
+  }
+  // 다음 시간 단어 범위 (숙제2026에서 가져온 표)
+  const h2 = rows.findIndex(r => (r[0]||"").trim()==="다음 시간 반");
+  if(h2>=0){
+    for(let i=h2+1;i<rows.length;i++){
+      const r=rows[i]; const name=(r[0]||"").trim(); const val=(r[1]||"").trim();
+      if(!name || !val) continue;
+      const nx = {range:val, date:(r[2]||"").trim()};
+      const c = out.find(x=>norm(x.name)===norm(name));
+      if(c) c.next = nx;
+      else out.push({name, book:"", week:["","","","",""], next:nx, extra:true});
+    }
   }
   return out;
 }
@@ -161,12 +179,17 @@ function render(){
       todayHtml = `<div class="today none"><div class="lbl">${label}</div><div class="val">오늘은 시험이 없어요</div>${nextHtml}</div>`;
     }
     const week = c.week.map((v,j)=>`<div class="day ${j===di?"is-today":""} ${v?"":"empty"}"><div class="d">${DAYS[j]}</div><div class="r">${v?esc(v):"–"}</div></div>`).join("");
-    detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${c.book?`<div class="book">${esc(c.book)}</div>`:""}${todayHtml}<div class="week">${week}</div></div>`;
+    const nextHtml = c.next ? `<div class="nextbox"><div><div class="lbl">다음 시간 단어 범위</div>${c.next.date?`<div class="when">${esc(c.next.date)} 수업에서 알려준 범위</div>`:""}</div><div class="val">${esc(c.next.range)}</div></div>` : "";
+    if(c.extra){
+      detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${nextHtml}</div>`;
+    } else {
+      detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${c.book?`<div class="book">${esc(c.book)}</div>`:""}${todayHtml}${nextHtml}<div class="week">${week}</div></div>`;
+    }
   }
 
   document.getElementById("allBtn").classList.toggle("hidden", weekend);
   if(weekend) document.getElementById("all").classList.add("hidden");
-  document.getElementById("all").innerHTML = classes.map(x=>{
+  document.getElementById("all").innerHTML = classes.filter(x=>!x.extra).map(x=>{
     const v=x.week[di];
     return `<div class="row"><span class="n">${esc(x.name)}</span><span class="v ${v?"":"x"}">${v?esc(v):"시험 없음"}</span></div>`;
   }).join("");
