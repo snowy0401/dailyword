@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page One · 오늘의 단어시험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1f2a44; --navy-2:#2e3c5e; --cream:#faf7f0; --card:#ffffff;
+    --yellow:#ffd84d; --yellow-soft:#fff4c2; --gray:#8a8f9c; --line:#e7e2d6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--cream);color:var(--navy);min-height:100vh;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:560px;margin:0 auto;padding:28px 18px 48px}
+  header{text-align:center;margin-bottom:22px}
+  .logo{font-family:'Playfair Display',serif;font-size:34px;letter-spacing:.5px;display:inline-block;padding-bottom:4px;border-bottom:3px solid var(--navy)}
+  .sub{margin-top:10px;font-size:15px;font-weight:700;letter-spacing:2px;color:var(--navy-2)}
+  .date{display:inline-block;margin-top:14px;background:var(--navy);color:#fff;border-radius:999px;padding:7px 16px;font-size:14px;font-weight:500}
+  .weekend{display:block;margin-top:8px;font-size:13px;color:var(--gray)}
+  h2{font-size:14px;color:var(--gray);font-weight:500;margin:22px 4px 10px}
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .chip{border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:12px 6px;font-size:15px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit;transition:.15s}
+  .chip:active{transform:scale(.97)}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .card{background:var(--card);border-radius:22px;padding:24px 20px;margin-top:18px;box-shadow:0 6px 24px rgba(31,42,68,.08)}
+  .cls{font-size:24px;font-weight:900}
+  .book{font-size:13px;color:var(--gray);margin-top:2px}
+  .today{margin-top:18px;background:var(--yellow-soft);border:2px solid var(--yellow);border-radius:16px;padding:18px 16px;text-align:center}
+  .today .lbl{font-size:13px;font-weight:700;color:var(--navy-2)}
+  .today .val{font-size:30px;font-weight:900;margin-top:6px;white-space:pre-line;word-break:keep-all;line-height:1.3}
+  .today.none{background:#f3f2ee;border-color:#e2e0d8}
+  .today.none .val{font-size:20px;color:var(--gray)}
+  .next{margin-top:10px;font-size:14px;color:var(--navy-2)}
+  .next b{font-weight:900}
+  .week{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:18px}
+  .day{border-radius:12px;background:#f6f4ee;padding:8px 4px;text-align:center;min-height:70px}
+  .day .d{font-size:12px;font-weight:700;color:var(--gray)}
+  .day .r{font-size:12px;font-weight:700;margin-top:4px;white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}
+  .day.is-today{background:var(--yellow)}
+  .day.is-today .d{color:var(--navy)}
+  .day.empty .r{color:#c4c2bb}
+  .all-btn{display:block;width:100%;margin-top:22px;background:none;border:1.5px dashed var(--line);border-radius:14px;padding:12px;font-family:inherit;font-size:14px;color:var(--navy-2);cursor:pointer}
+  .all{margin-top:12px;background:var(--card);border-radius:18px;overflow:hidden}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .n{font-weight:700;font-size:15px;flex-shrink:0}
+  .row .v{font-size:14px;font-weight:700;text-align:right;white-space:pre-line}
+  .row .v.x{color:#c4c2bb;font-weight:400}
+  .msg{text-align:center;color:var(--gray);padding:40px 10px;font-size:15px;line-height:1.6}
+  footer{text-align:center;font-size:12px;color:var(--gray);margin-top:28px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">Page One</div>
+    <div class="sub">오늘의 단어시험</div>
+    <div class="date" id="date"></div>
+    <span class="weekend hidden" id="weekend">주말이에요. 다음 주 범위는 월요일에 올라와요.</span>
+  </header>
+
+  <div id="loading" class="msg">범위를 불러오는 중이에요…</div>
+  <div id="error" class="msg hidden">범위를 불러오지 못했어요.<br>잠시 후 다시 열어 주세요.</div>
+
+  <main id="main" class="hidden">
+    <h2>내 반을 눌러 주세요</h2>
+    <div class="chips" id="chips"></div>
+    <div id="detail"></div>
+    <button class="all-btn" id="allBtn">전체 반 오늘 범위 보기</button>
+    <div class="all hidden" id="all"></div>
+  </main>
+
+  <footer id="updated"></footer>
+</div>
+
+<script>
+// ▼ 구글 시트에서 '웹에 게시'(CSV)로 받은 주소를 여기에 붙여 넣으세요.
+const CSV_URL = "PASTE_CSV_URL_HERE";
+
+const DAYS = ["월","화","수","목","금"];
+let classes = [];
+let selected = null;
+try { selected = localStorage.getItem("p1-class"); } catch(e) {}
+
+function seoulNow(){
+  const parts = new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Seoul",weekday:"short",month:"numeric",day:"numeric"}).formatToParts(new Date());
+  const get = t => parts.find(p=>p.type===t).value;
+  const wd = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[get("weekday")];
+  return {wd, month:get("month"), day:get("day")};
+}
+
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    } else if(c==='"') q=true;
+    else if(c===','){ row.push(cell); cell=""; }
+    else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=""; }
+    else if(c!=='\r') cell+=c;
+  }
+  if(cell!==""||row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function toClasses(rows){
+  const h = rows.findIndex(r => (r[0]||"").trim()==="반");
+  if(h<0) throw new Error("header not found");
+  const out=[];
+  for(let i=h+1;i<rows.length;i++){
+    const r=rows[i]; const name=(r[0]||"").trim();
+    if(!name) continue;
+    if(name.startsWith("선생님용")) break;
+    const week = [3,4,5,6,7].map(j => { const v=(r[j]||"").trim(); return (v==="-"||v==="")? "" : v; });
+    out.push({name, book:(r[1]||"").trim(), week});
+  }
+  return out;
+}
+
+function esc(s){ return s.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function render(){
+  const now = seoulNow();
+  const weekend = now.wd>4;
+  const di = weekend ? -1 : now.wd;
+  const dayName = ["월","화","수","목","금","토","일"][now.wd];
+  document.getElementById("date").textContent = `${now.month}월 ${now.day}일 ${dayName}요일`;
+  document.getElementById("weekend").classList.toggle("hidden", !weekend);
+
+  if(selected && !classes.find(c=>c.name===selected)) selected=null;
+
+  const chips=document.getElementById("chips");
+  chips.innerHTML = classes.map(c=>`<button class="chip ${c.name===selected?"on":""}" data-n="${esc(c.name)}">${esc(c.name)}</button>`).join("");
+  chips.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{
+    selected=b.dataset.n;
+    try{ localStorage.setItem("p1-class",selected); }catch(e){}
+    render();
+    document.getElementById("detail").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+
+  const detail=document.getElementById("detail");
+  const c = classes.find(x=>x.name===selected);
+  if(!c){ detail.innerHTML=""; }
+  else{
+    const todayVal = weekend ? "" : c.week[di];
+    const label = weekend ? "이번 주 시험 범위" : "오늘 시험 범위";
+    let todayHtml;
+    if(weekend){
+      todayHtml = `<div class="today none"><div class="lbl">주말</div><div class="val">주말에는 시험이 없어요</div><div class="next">다음 주 범위는 <b>월요일</b>에 올라와요</div></div>`;
+    } else if(todayVal){
+      todayHtml = `<div class="today"><div class="lbl">${label}</div><div class="val">${esc(todayVal)}</div></div>`;
+    } else {
+      let nextHtml = "";
+      for(let j=di+1;j<5;j++){ if(c.week[j]){ nextHtml=`<div class="next">다음 시험: <b>${DAYS[j]}요일 · ${esc(c.week[j])}</b></div>`; break; } }
+      todayHtml = `<div class="today none"><div class="lbl">${label}</div><div class="val">오늘은 시험이 없어요</div>${nextHtml}</div>`;
+    }
+    const week = c.week.map((v,j)=>`<div class="day ${j===di?"is-today":""} ${v?"":"empty"}"><div class="d">${DAYS[j]}</div><div class="r">${v?esc(v):"–"}</div></div>`).join("");
+    detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${c.book?`<div class="book">${esc(c.book)}</div>`:""}${todayHtml}<div class="week">${week}</div></div>`;
+  }
+
+  document.getElementById("allBtn").classList.toggle("hidden", weekend);
+  if(weekend) document.getElementById("all").classList.add("hidden");
+  document.getElementById("all").innerHTML = classes.map(x=>{
+    const v=x.week[di];
+    return `<div class="row"><span class="n">${esc(x.name)}</span><span class="v ${v?"":"x"}">${v?esc(v):"시험 없음"}</span></div>`;
+  }).join("");
+}
+
+async function load(){
+  try{
+    const sep = CSV_URL.includes("?") ? "&" : "?";
+    const res = await fetch(CSV_URL + sep + "t=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error(res.status);
+    classes = toClasses(parseCSV(await res.text()));
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("error").classList.add("hidden");
+    document.getElementById("main").classList.remove("hidden");
+    const t = new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",hour:"numeric",minute:"2-digit"}).format(new Date());
+    document.getElementById("updated").textContent = `${t} 기준 · 범위는 선생님이 매일 업데이트해요`;
+    render();
+  }catch(e){
+    if(!classes.length){
+      document.getElementById("loading").classList.add("hidden");
+      document.getElementById("error").classList.remove("hidden");
+    }
+  }
+}
+
+document.getElementById("allBtn").onclick=()=>{
+  const a=document.getElementById("all");
+  a.classList.toggle("hidden");
+  document.getElementById("allBtn").textContent = a.classList.contains("hidden") ? "전체 반 오늘 범위 보기" : "전체 반 접기";
+};
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
+setInterval(load, 5*60*1000);
+load();
+</script>
+</body>
+</html>
