@@ -39,7 +39,28 @@
   .nextbox .lbl{font-size:13px;font-weight:700;color:var(--navy-2)}
   .nextbox .when{font-size:11px;color:var(--gray);margin-top:2px}
   .nextbox .val{font-size:18px;font-weight:900;text-align:right;white-space:pre-line;word-break:keep-all}
-  .week{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:18px}
+  .wk-title{margin-top:20px;font-size:14px;font-weight:900;color:var(--navy)}
+  .wk{margin-top:8px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .wk-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);background:#fff}
+  .wk-row:last-child{border-bottom:none}
+  .wk-row .dd{width:64px;flex-shrink:0;font-size:13px;font-weight:700;color:var(--navy-2)}
+  .wk-row .dd small{display:block;font-size:11px;font-weight:400;color:var(--gray)}
+  .wk-row .rv{flex:1;font-size:16px;font-weight:700;white-space:pre-line;word-break:keep-all}
+  .wk-row .tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px;flex-shrink:0}
+  .wk-row.is-today{background:var(--yellow-soft)}
+  .wk-row.is-today .tag{background:var(--yellow);color:var(--navy)}
+  .wk-row.past .rv,.wk-row.past .dd{opacity:.45}
+  .wk-row.past .tag{color:var(--gray)}
+  .wk-row.none .rv{color:#c4c2bb;font-weight:400;font-size:14px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;background:#fff;border-radius:18px}
+  table.tbl{border-collapse:collapse;width:100%;table-layout:fixed;font-size:12px}
+  .tbl th,.tbl td{border-bottom:1px solid var(--line);padding:9px 3px;text-align:center;white-space:pre-line;word-break:break-all;line-height:1.35}
+  .tbl th{background:var(--navy);color:#fff;font-weight:700;position:sticky;top:0}
+  .tbl th.tdy{background:#3b4c75}
+  .tbl td.tdy{background:var(--yellow-soft);font-weight:700}
+  .tbl td.cn{font-weight:700;text-align:left;padding-left:10px;word-break:keep-all}
+  .tbl col.cn{width:74px}
+  .tbl td.x{color:#c4c2bb}
   .day{border-radius:12px;background:#f6f4ee;padding:8px 4px;text-align:center;min-height:70px}
   .day .d{font-size:12px;font-weight:700;color:var(--gray)}
   .day .r{font-size:12px;font-weight:700;margin-top:4px;white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}
@@ -74,8 +95,8 @@
     <h2>내 반을 눌러 주세요</h2>
     <div class="chips" id="chips"></div>
     <div id="detail"></div>
-    <button class="all-btn" id="allBtn">전체 반 오늘 범위 보기</button>
-    <div class="all hidden" id="all"></div>
+    <button class="all-btn" id="allBtn">전체 반 이번 주 범위 보기</button>
+    <div class="all hidden" id="all" style="background:none"></div>
   </main>
 
   <footer id="updated"></footer>
@@ -95,6 +116,14 @@ function seoulNow(){
   const get = t => parts.find(p=>p.type===t).value;
   const wd = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6}[get("weekday")];
   return {wd, month:get("month"), day:get("day")};
+}
+
+function weekDates(){
+  // 이번 주 월~금 날짜 (서울 기준)
+  const p = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const [y,m,d] = p.split("-").map(Number);
+  const wd = seoulNow().wd;
+  return [0,1,2,3,4].map(i=>{ const t=new Date(Date.UTC(y,m-1,d-wd+i)); return `${t.getUTCMonth()+1}/${t.getUTCDate()}`; });
 }
 
 function parseCSV(text){
@@ -178,21 +207,26 @@ function render(){
       for(let j=di+1;j<5;j++){ if(c.week[j]){ nextHtml=`<div class="next">다음 시험: <b>${DAYS[j]}요일 · ${esc(c.week[j])}</b></div>`; break; } }
       todayHtml = `<div class="today none"><div class="lbl">${label}</div><div class="val">오늘은 시험이 없어요</div>${nextHtml}</div>`;
     }
-    const week = c.week.map((v,j)=>`<div class="day ${j===di?"is-today":""} ${v?"":"empty"}"><div class="d">${DAYS[j]}</div><div class="r">${v?esc(v):"–"}</div></div>`).join("");
+    const dates = weekDates();
+    const todayIdx = weekend ? 5 : di;
+    const weekRows = c.week.map((v,j)=>{
+      const cls = j===di ? "is-today" : (j<todayIdx ? "past" : "");
+      const tag = j===di ? `<span class="tag">오늘</span>` : (j<todayIdx ? `<span class="tag">지남</span>` : "");
+      return `<div class="wk-row ${cls} ${v?"":"none"}"><div class="dd">${DAYS[j]}요일<small>${dates[j]}</small></div><div class="rv">${v?esc(v):"시험 없음"}</div>${tag}</div>`;
+    }).join("");
+    const week = `<div class="wk-title">이번 주 단어시험</div><div class="wk">${weekRows}</div>`;
     const nextHtml = c.next ? `<div class="nextbox"><div><div class="lbl">다음 시간 단어 범위</div>${c.next.date?`<div class="when">${esc(c.next.date)} 수업에서 알려준 범위</div>`:""}</div><div class="val">${esc(c.next.range)}</div></div>` : "";
     if(c.extra){
       detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${nextHtml}</div>`;
     } else {
-      detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${c.book?`<div class="book">${esc(c.book)}</div>`:""}${todayHtml}${nextHtml}<div class="week">${week}</div></div>`;
+      detail.innerHTML = `<div class="card"><div class="cls">${esc(c.name)}</div>${c.book?`<div class="book">${esc(c.book)}</div>`:""}${todayHtml}${nextHtml}${week}</div>`;
     }
   }
 
-  document.getElementById("allBtn").classList.toggle("hidden", weekend);
-  if(weekend) document.getElementById("all").classList.add("hidden");
-  document.getElementById("all").innerHTML = classes.filter(x=>!x.extra).map(x=>{
-    const v=x.week[di];
-    return `<div class="row"><span class="n">${esc(x.name)}</span><span class="v ${v?"":"x"}">${v?esc(v):"시험 없음"}</span></div>`;
-  }).join("");
+  const dts = weekDates();
+  const head = `<tr><th class="cn">반</th>${DAYS.map((d,j)=>`<th class="${j===di?"tdy":""}">${d}<br>${dts[j]}</th>`).join("")}</tr>`;
+  const body = classes.filter(x=>!x.extra).map(x=>`<tr><td class="cn">${esc(x.name)}</td>${x.week.map((v,j)=>`<td class="${j===di?"tdy":""} ${v?"":"x"}">${v?esc(v):"–"}</td>`).join("")}</tr>`).join("");
+  document.getElementById("all").innerHTML = `<div class="tbl-wrap"><table class="tbl"><colgroup><col class="cn"><col><col><col><col><col></colgroup>${head}${body}</table></div>`;
 }
 
 async function load(){
@@ -218,7 +252,7 @@ async function load(){
 document.getElementById("allBtn").onclick=()=>{
   const a=document.getElementById("all");
   a.classList.toggle("hidden");
-  document.getElementById("allBtn").textContent = a.classList.contains("hidden") ? "전체 반 오늘 범위 보기" : "전체 반 접기";
+  document.getElementById("allBtn").textContent = a.classList.contains("hidden") ? "전체 반 이번 주 범위 보기" : "전체 반 접기";
 };
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 setInterval(load, 5*60*1000);
